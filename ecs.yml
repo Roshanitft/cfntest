@@ -1,0 +1,288 @@
+Parameters:
+  ImageId:
+    Type: String
+    Description: Place imageid
+  VpcId:
+    Type: String
+    Description: >
+      Optional - Specifies the ID of an existing VPC in which to launch
+      your container instances. If you specify a VPC ID, you must specify a list of
+      existing subnets in that VPC. If you do not specify a VPC ID, a new VPC is created
+      with atleast 1 subnet.
+    Default: ''
+    ConstraintDescription: >
+      VPC Id must begin with 'vpc-' or leave blank to have a
+      new VPC created
+  VpcCidr:
+    Type: String
+    Description: Optional - Specifies the CIDR Block of VPC
+    Default: ''
+  SubnetCidr1:
+    Type: String
+    Description: Specifies the CIDR Block of Subnet 1
+    Default: ''
+  SubnetCidr2:
+    Type: String
+    Description: Specifies the CIDR Block of Subnet 2
+    Default: ''
+  SubnetCidr3:
+    Type: String
+    Description: Specifies the CIDR Block of Subnet 3
+    Default: ''
+  EcsAmiId:
+    Type: String
+    Description: Type Ec2 image
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Select Key-pair
+  SecurityIngressFromPort:
+    Type: CommaDelimitedList
+    Description: Type in commas give two ports
+    Default: '0'
+  SecurityIngressToPort:
+    Type: CommaDelimitedList
+    Description: Type in commas give two ports  
+    Default: '65535'
+  SecurityIngressCidrIp:
+    Type: String
+    Description: >
+      Optional - Specifies the CIDR/IP range for Security Ports - defaults
+      to 0.0.0.0/0
+    Default: 0.0.0.0/0
+  VpcAvailabilityZones:
+    Type: CommaDelimitedList
+    Description: >
+      Specifies a comma-separated list of 3 VPC Availability Zones for
+      the creation of new subnets. These zones must have the available status.
+Conditions: 
+  CreateNewVpc:
+    !Equals [!Ref VpcId, '']
+  CreateSubnet1: !And
+    - !Not [!Equals [!Ref SubnetCidr1, '']]
+    - !Condition CreateNewVpc
+  CreateSubnet2: !And
+    - !Not [!Equals [!Ref SubnetCidr2, '']]
+    - !Condition CreateSubnet1
+  CreateSubnet3: !And
+    - !Not [!Equals [!Ref SubnetCidr3, '']]
+    - !Condition CreateSubnet2
+Resources:
+  Vpc:
+    Condition: CreateSubnet1
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+  PubSubnetAz1:
+    Condition: CreateSubnet1
+    Type: AWS::EC2::Subnet
+    Properties: 
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref SubnetCidr1
+      AvailabilityZone: !Select [ 0, !Ref VpcAvailabilityZones ]
+      MapPublicIpOnLaunch: true
+  PubSubnetAz2:
+    Condition: CreateSubnet2
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref SubnetCidr2
+      AvailabilityZone: !Select [ 1, !Ref VpcAvailabilityZones ]
+      MapPublicIpOnLaunch: true
+  PubSubnetAz3:
+    Condition: CreateSubnet3
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref SubnetCidr3
+      AvailabilityZone: !Select [ 2, !Ref VpcAvailabilityZones ]
+      MapPublicIpOnLaunch: true
+  InternetGateway:
+    Condition: CreateSubnet1
+    Type: AWS::EC2::InternetGateway
+  AttachGateway:
+    Condition: CreateSubnet1
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+  RouteViaIgw:
+    Condition: CreateSubnet1
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+  PublicRouteViaIgw:
+    Condition: CreateSubnet1
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteViaIgw
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PubSubnet1RouteTableAssociation:
+    Condition: CreateSubnet1
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PubSubnetAz1
+      RouteTableId: !Ref RouteViaIgw
+  PubSubnet2RouteTableAssociation:
+    Condition: CreateSubnet2
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PubSubnetAz2
+      RouteTableId: !Ref RouteViaIgw
+  PubSubnet3RouteTableAssociation:
+    Condition: CreateSubnet3
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PubSubnetAz3
+      RouteTableId: !Ref RouteViaIgw 
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: Testing
+    DependsOn: EcsAutoscalingGroup
+  EcsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ECS Allowed Ports
+      VpcId: !If [ CreateSubnet1, !Ref Vpc, !Ref VpcId ]
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: !Select [ 0, !Ref SecurityIngressFromPort ]
+        ToPort: !Select [ 0, !Ref SecurityIngressToPort ]
+        CidrIp: !Ref SecurityIngressCidrIp
+      - IpProtocol: tcp
+        FromPort: !Select [ 1, !Ref SecurityIngressFromPort ]
+        ToPort: !Select [ 1, !Ref  SecurityIngressToPort ]
+        CidrIp: !Ref SecurityIngressCidrIp
+  EcsAutoscalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier: 
+        - !Ref PubSubnetAz1
+        - !Ref PubSubnetAz2
+        - !Ref PubSubnetAz3
+      LaunchConfigurationName: !Ref ContainerInstance
+      DesiredCapacity: 2
+      MinSize: 1
+      MaxSize: 3
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoscalingReplacingUpdate:
+        WillReplace: 'true'
+  ContainerInstance:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref ImageId
+      SecurityGroups:
+       - !Ref EcsSecurityGroup
+      InstanceType: t2.micro
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      KeyName: !Ref KeyName
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          echo "==========================="
+          whoami
+          sudo amazon-linux-extras install -y ecs
+          systemctl enable --now --no-block ecs.service 
+          sudo su && echo ECS_CLUSTER=Testing >> /etc/ecs/ecs.config
+          yum install -y aws-cfn-bootstrap
+          yum install git -y
+          mkdir app
+          git init
+          git clone https://github.com/KhandelwalGK/cfntest.git
+          cd cfntest
+          docker build -t test .
+          docker run -dit --name test -p 8082:8082 test
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoscalingGroup --region ${AWS::Region}
+  
+  AutoscalingRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+          - Effect: Allow
+            Principal:
+              Service: [application-autoscaling.amazonaws.com]
+            Action: ['sts:AssumeRole']
+        Path: /
+        Policies:
+        - PolicyName: service-autoscaling
+          PolicyDocument:
+            Statement:
+            - Effect: Allow
+              Action:
+                - 'application-autoscaling:*'
+                - 'cloudwatch:DescribeAlarms'
+                - 'cloudwatch:PutMetricAlarm'
+                - 'ecs:DescribeServices'
+                - 'ecs:UpdateService'
+              Resource: '*'      
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref EC2Role
+
+  EC2Role:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: ecs-service
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ecs:CreateCluster'
+                  - 'ecs:DeregisterContainerInstance'
+                  - 'ecs:DiscoverPollEndpoint'
+                  - 'ecs:Poll'
+                  - 'ecs:RegisterContainerInstance'
+                  - 'ecs:StartTelemetrySession'
+                  - 'ecs:Submit*'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'         
+  ECSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [ecs.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+      - PolicyName: ecs-service
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              # Rules which allow ECS to attach network interfaces to instances
+              # on your behalf in order for awsvpc networking mode to work right
+              - 'ec2:AttachNetworkInterface'
+              - 'ec2:CreateNetworkInterface'
+              - 'ec2:CreateNetworkInterfacePermission'
+              - 'ec2:DeleteNetworkInterface'
+              - 'ec2:DeleteNetworkInterfacePermission'
+              - 'ec2:Describe*'
+              - 'ec2:DetachNetworkInterface'
+            Resource: '*'
+
+
