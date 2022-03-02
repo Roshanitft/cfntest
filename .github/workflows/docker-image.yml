@@ -16,8 +16,16 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build the Docker image
       run: docker build -t web .
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
     - name: Pushing image
       run: |
-        aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 544391074589.dkr.ecr.us-east-2.amazonaws.com
         docker tag web:latest 544391074589.dkr.ecr.us-east-2.amazonaws.com/web:latest
         docker push 544391074589.dkr.ecr.us-east-2.amazonaws.com/web:latest
