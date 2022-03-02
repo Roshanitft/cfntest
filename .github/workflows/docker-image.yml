@@ -31,7 +31,7 @@ jobs:
         docker tag web:latest 544391074589.dkr.ecr.us-east-2.amazonaws.com/web:latest
         docker push 544391074589.dkr.ecr.us-east-2.amazonaws.com/web:latest
     - name: executing remote ssh commands using ssh key
-      uses: appleboy/ssh-action@master
+      uses: appleboy/ssh-action@main
       with:
         host: 3.19.14.208
         username: ec2-user
