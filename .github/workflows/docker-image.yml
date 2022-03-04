@@ -18,8 +18,8 @@ jobs:
     - name: executing remote ssh commands using ssh key
       uses: appleboy/ssh-action@master
       with:
-        host: 192.168.0.14
-        username: saurav
+        host: 3.136.11.188
+        username: ec2-user
         key: ${{ secrets.TESTINGEC2 }}
         port: 22
         script: whoami
