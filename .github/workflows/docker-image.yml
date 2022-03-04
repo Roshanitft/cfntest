@@ -22,4 +22,7 @@ jobs:
         username: ec2-user
         key: ${{ secrets.TESTINGEC2 }}
         port: 22
-        script: whoami
+        script: |
+          whoami
+          pwd
+          git clone https://github.com/KhandelwalGK/cfntest.git
