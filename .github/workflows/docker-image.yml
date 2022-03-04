@@ -27,5 +27,7 @@ jobs:
           pwd
           eval $(ssh-agent)
           cd ~/.ssh/
+          echo "pwd"
+          pwd
           ssh-add my-git-key
           git clone git@github.com:KhandelwalGK/cfntest.git
