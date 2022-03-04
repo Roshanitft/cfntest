@@ -25,4 +25,6 @@ jobs:
         script: |
           whoami
           pwd
+          eval $(ssh-agent)
+          ssh-add ~/.ssh/my-git-key
           git clone git@github.com:KhandelwalGK/cfntest.git
