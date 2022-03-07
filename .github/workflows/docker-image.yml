@@ -28,4 +28,4 @@ jobs:
           git clone https://github.com/sauravsa21/cfntest.git
           cd cfntest
           sudo docker build -t test .
-          sudo docker run -dit --name testc -p 8080:8080 test
+          sudo docker run -dit --name ${{ github.GITHUB_RUN_NUMBER }} -p 8080:8080 test
