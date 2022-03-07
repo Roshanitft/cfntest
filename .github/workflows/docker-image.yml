@@ -25,5 +25,5 @@ jobs:
         script: |
           git clone https://github.com/sauravsa21/cfntest.git
           cd cfntest
-          docker build -t test .
-          docker run -dit --name testc -p 8080:8080 test
+          sudo docker build -t test .
+          sudo docker run -dit --name testc -p 8080:8080 test
