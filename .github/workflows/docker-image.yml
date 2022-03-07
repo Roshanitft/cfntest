@@ -23,6 +23,7 @@ jobs:
         key: ${{ secrets.sshkey }}
         port: 22
         script: |
+          env
           rm -rf cfn-test
           git clone https://github.com/sauravsa21/cfntest.git
           cd cfntest
