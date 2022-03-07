@@ -18,16 +18,9 @@ jobs:
     - name: executing remote ssh commands using ssh key
       uses: appleboy/ssh-action@master
       with:
-        host: 3.136.11.188
+        host: 34.228.40.21
         username: ec2-user
-        key: ${{ secrets.TESTINGEC2 }}
+        key: ${{ secrets.sshkey }}
         port: 22
         script: |
-          whoami
-          pwd
-          eval $(ssh-agent)
-          cd ~/.ssh/
-          echo "pwd"
-          pwd
-          ssh-add my-git-key
-          git clone git@github.com:KhandelwalGK/cfntest.git
+          git clone https://github.com:KhandelwalGK/cfntest.git
