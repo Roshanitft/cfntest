@@ -18,15 +18,15 @@ jobs:
     - name: executing remote ssh commands using ssh key
       uses: appleboy/ssh-action@master
       with:
-        host: 34.228.40.21
-        username: ec2-user
+        host: 192.168.49.1
+        username: roshu
         key: ${{ secrets.sshkey }}
         port: 22
         script: |
           env
           rm -rf cfntest
-          git clone https://github.com/sauravsa21/cfntest.git
+          git clone https://github.com/Roshanitft/cfntest.git
           cd cfntest
           sudo docker build -t test .
           sudo docker rm -f test
-          sudo docker run -dit --name test -p 8080:8080 test
+          sudo docker run -dit --name test98 -p 8080:8080 test
